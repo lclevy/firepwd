@@ -30,8 +30,8 @@ If a master password has been set, provide it using the -p option.
 
 Valid verbose levels (-v) are from 0 (default) to 2.
 
-$ python firepwd2.py -h
-Usage: firepwd2.py [options] 
+$ python firepwd.py -h
+Usage: firepwd.py [options] 
 
 Options:
   -h, --help            show this help message and exit
