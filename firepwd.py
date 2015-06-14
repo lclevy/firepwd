@@ -1,6 +1,7 @@
 # decode Firefox passwords
 # lclevy@free.fr (28 Aug 2013)
-# for eductional purpose only, not production level
+# for educational purpose only, not production level
+# now integrated into https://github.com/AlessandroZ/LaZagne
 
 from struct import unpack
 import sys
@@ -230,10 +231,10 @@ if ord(key3['Version']) == 3:
   for i in logins:
     print '%20s:' % i[2],  #site URL
     iv = i[0][1]
-    ciphertext = i[0][2] #login
+    ciphertext = i[0][2] #login (PKCS#7 padding not removed)
     print repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ), ',',
     iv = i[1][1]
-    ciphertext = i[1][2] #passwd
+    ciphertext = i[1][2] #passwd (PKCS#7 padding not removed)
     print repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) )
 else:
   print 'error key3.db version != 3'
