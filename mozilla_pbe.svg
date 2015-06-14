@@ -655,9 +655,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.35"
-     inkscape:cx="1197.3333"
-     inkscape:cy="1111.4701"
+     inkscape:zoom="0.7"
+     inkscape:cx="1883.0476"
+     inkscape:cy="1568.6129"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -1099,7 +1099,7 @@
          sodipodi:role="line"
          id="tspan8989"
          x="2594"
-         y="-975.63794">v1.0</tspan><tspan
+         y="-975.63794">v1.01</tspan><tspan
          sodipodi:role="line"
          x="2594"
          y="-950.63794"
@@ -2393,7 +2393,13 @@
          x="711.61047"
          y="19.572479"
          style="font-size:16px;fill:#000000"
-         id="tspan5341-9-7-2">key/value pairs in current page: 6 values (3 times key/value)</tspan><tspan
+         id="tspan5341-9-7-2"><tspan
+   style="fill:#ff0000"
+   id="tspan8246">key/value pairs in current page</tspan>: 2 values (1 time <tspan
+   style="fill:#552200"
+   id="tspan8248">key</tspan>/<tspan
+   style="fill:#008000"
+   id="tspan8250">value</tspan>)</tspan><tspan
          sodipodi:role="line"
          x="711.61047"
          y="39.572479"
