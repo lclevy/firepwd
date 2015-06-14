@@ -18,6 +18,9 @@ http://arc.info/?l=openssl-dev&m=93378860132031&w=2
 
 This code is released under GPL license.
 
+Now part of LaZagne project:
+https://github.com/AlessandroZ/LaZagne
+
 
 Usage
 *****
