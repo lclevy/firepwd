@@ -655,9 +655,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.7"
-     inkscape:cx="1883.0476"
-     inkscape:cy="1568.6129"
+     inkscape:zoom="0.49497475"
+     inkscape:cx="1661.619"
+     inkscape:cy="841.30307"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -693,7 +693,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -870,18 +870,18 @@
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:48px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
        x="968.69055"
-       y="-957.17651"
+       y="-947.17651"
        id="text3134"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan3136"
          x="968.69055"
-         y="-957.17651"
+         y="-947.17651"
          style="font-size:65px;font-family:'Aracne Regular';-inkscape-font-specification:'Aracne Regular'">Mozilla<tspan
    style="font-size:65px;fill:#ff0000"
    id="tspan3138"> P<tspan
    style="font-size:65px;fill:#000000"
-   id="tspan4481">assword</tspan> b<tspan
+   id="tspan4481">assword-</tspan>b<tspan
    style="font-size:65px;fill:#000000"
    id="tspan4483">ased</tspan> e</tspan>ncryption</tspan></text>
     <text
@@ -1099,7 +1099,7 @@
          sodipodi:role="line"
          id="tspan8989"
          x="2594"
-         y="-975.63794">v1.01</tspan><tspan
+         y="-975.63794">v1.02</tspan><tspan
          sodipodi:role="line"
          x="2594"
          y="-950.63794"
@@ -2263,7 +2263,7 @@
          x="712.29797"
          y="-193.03467"
          style="font-size:16px;fill:#000000"
-         id="tspan5413-2-3">       00 0b 2a864886f70d010c050103 </tspan><tspan
+         id="tspan5413-2-3">       00 0b 2a864886f70d010c050103  # object ID, len = 0x0b </tspan><tspan
          sodipodi:role="line"
          x="712.29797"
          y="-173.03467"
@@ -2613,22 +2613,22 @@
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:48px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        x="1039.381"
-       y="-901.98315"
+       y="-891.98315"
        id="text4824-9-1"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          x="1039.381"
-         y="-901.98315"
+         y="-891.98315"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:27.5px;font-family:Consolas;-inkscape-font-specification:Consolas"
          id="tspan6180-0">How passwords are stored/protected in Mozilla products</tspan><tspan
          sodipodi:role="line"
          x="1039.381"
-         y="-867.60815"
+         y="-857.60815"
          id="tspan4830-1-3"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;font-family:Consolas;-inkscape-font-specification:Consolas" /><tspan
          sodipodi:role="line"
          x="1039.381"
-         y="-833.23315"
+         y="-823.23315"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;font-family:Consolas;-inkscape-font-specification:Consolas"
          id="tspan5456-4" /></text>
     <text
@@ -2693,7 +2693,11 @@
          id="tspan5017-2-7"
          x="1372.0497"
          y="-536.44495"
-         style="font-size:17.5px;fill:#999999">length=0x14 (20)</tspan></text>
+         style="font-size:17.5px;fill:#999999">length=<tspan
+   style="fill:#ff5555"
+   id="tspan5289">0x14 </tspan>(<tspan
+   style="fill:#ff5555"
+   id="tspan5287">20</tspan>)</tspan></text>
     <path
        style="color:#000000;display:inline;overflow:visible;visibility:visible;fill:none;stroke:#4d4d4d;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker:none;marker-end:url(#Arrow1Lend-10);enable-background:accumulate"
        d="m 2498.7052,-586.16646 -437.9682,0"

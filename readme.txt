@@ -22,6 +22,11 @@ Now part of LaZagne project:
 https://github.com/AlessandroZ/LaZagne
 
 
+You can also read the related article, in french:
+http://connect.ed-diamond.com/MISC/MISC-069/Protection-des-mots-de-passe-par-Firefox-et-Thunderbird-analyse-par-la-pratique
+
+
+
 Usage
 *****
 
