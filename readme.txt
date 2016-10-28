@@ -6,7 +6,7 @@ Introduction
 ************
 
 This educational tool was written to illustrate how Mozilla passwords (Firefox, Thunderbird) are protected
-using contents of files key3.db and signons.sqlite.
+using contents of files key3.db, logins.json (or signons.sqlite).
 
 Reference documents are:
 - Into the Black Box: A Case Study in Obtaining Visibility into Commercial Software, 

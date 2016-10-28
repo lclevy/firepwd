@@ -1,7 +1,10 @@
-# decode Firefox passwords
-# lclevy@free.fr (28 Aug 2013)
+# decode Firefox passwords (https://github.com/lclevy/firepwd)
+# lclevy@free.fr (28 Aug 2013: initial version, Oct 2016: support for logins.json)
 # for educational purpose only, not production level
 # now integrated into https://github.com/AlessandroZ/LaZagne
+# tested with python 2.7
+# key3.db is read directly, the 3rd party bsddb python module is NOT needed
+# NSS library is NOT needed
 
 from struct import unpack
 import sys
@@ -15,6 +18,7 @@ import hmac
 from Crypto.Cipher import DES3
 from Crypto.Util.number import long_to_bytes   
 from optparse import OptionParser
+import json
    
 def getShortLE(d, a):
    return unpack('<H',(d)[a:a+2])[0]
@@ -144,22 +148,35 @@ def decrypt3DES( globalSalt, masterPassword, entrySalt, encryptedData ):
   if options.verbose>0:
     print 'key='+hexlify(key), 'iv='+hexlify(iv)
   return DES3.new( key, DES3.MODE_CBC, iv).decrypt(encryptedData)
+
+def decodeLoginData(data):
+  asn1data = decoder.decode(b64decode(data)) #first base64 decoding, then ASN1DERdecode
+  return asn1data[0][0].asOctets(), asn1data[0][1][1].asOctets(), asn1data[0][2].asOctets() #for login and password, keep :(key_id, iv, ciphertext)
   
 def getLoginData():
   conn = sqlite3.connect(options.directory+'signons.sqlite')
-  c = conn.cursor()
-  c.execute("SELECT * FROM moz_logins;")
   logins = []
+  c = conn.cursor()
+  try:
+    c.execute("SELECT * FROM moz_logins;")
+  except sqlite3.OperationalError: #since Firefox 32, json is used instead of sqlite3
+    loginf = open(options.directory+'logins.json','r').read()
+    jsonLogins = json.loads(loginf)
+    if 'logins' not in jsonLogins:
+      print 'error: no \'logins\' key in logins.json'
+      return []
+    for row in jsonLogins['logins']:
+      encUsername = row['encryptedUsername']
+      encPassword = row['encryptedPassword']
+      logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row['hostname']) )
+    return logins
+  #using sqlite3 database
   for row in c:
-     if options.verbose>1:
-       print row[1], row[6], row[7]
-     loginASN1 = decoder.decode(b64decode(row[6])) #first base64 decoding, then ASN1DERdecode
-     passwdASN1 = decoder.decode(b64decode(row[7]))   
-     if options.verbose>0:
-       printASN1(b64decode(row[6]), len(b64decode(row[6])), 0) 
-       printASN1(b64decode(row[7]), len(b64decode(row[7])), 0) 
-     logins.append( ( ( loginASN1[0][0].asOctets(), loginASN1[0][1][1].asOctets(), loginASN1[0][2].asOctets() ), #for login and password, keep :(key_id, iv, ciphertext)
-       ( passwdASN1[0][0].asOctets(), passwdASN1[0][1][1].asOctets(), passwdASN1[0][2].asOctets() ), row[1] ) )
+    encUsername = row[6]
+    encPassword = row[7]
+    if options.verbose>1:
+      print row[1], encUsername, encPassword
+    logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row[1]) )
   return logins
 
 def extractSecretKey(masterPassword):
