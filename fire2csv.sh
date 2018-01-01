@@ -15,8 +15,9 @@ CMD="python firepwd.py -d ./ "
 PASSWD=""
 
 # SED command to convert to pseudo CSV
-#         protcol host:port  user       pass
-CSV="s|^ *([^:]+)://(.*?): '([^']*)' , '([^']*)'\$|\2,\1://\2,\3,\4|"
+#         protcol host:port  user       pass    url,username,password,extra,name,grouping,fav
+CSV="s|^ *([^:]+)://(.*?): '([^']*)' , '([^']*)'\$|\1://\2,\3,\4,,\2,Firefox,0|"
+
 
 # check for options:
 # RAW output
@@ -42,6 +43,8 @@ then
 fi
 
 # do the magic ...
+echo "url,username,password,extra,name,grouping,fav"
+
 ${CMD} ${PASSWD} | \
         sed -n -e '/^decrypting login/,$p' | \
         sed -e '/^decrypting login/d' -e 's/\\x0[0-9]//g' | \
