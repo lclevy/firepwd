@@ -6,7 +6,7 @@ Introduction
 ************
 
 This educational tool was written to illustrate how Mozilla passwords (Firefox, Thunderbird) are protected
-using contents of files key3.db, logins.json (or signons.sqlite).
+using contents of files key3.db (or key4.db), logins.json (or signons.sqlite).
 
 Reference documents are:
 - Into the Black Box: A Case Study in Obtaining Visibility into Commercial Software, 
@@ -30,7 +30,7 @@ http://connect.ed-diamond.com/MISC/MISC-069/Protection-des-mots-de-passe-par-Fir
 Usage
 *****
 
-By default, firepwd.py processes key3.db and signons.sqlite files in current directory, 
+By default, firepwd.py processes key3.db (or key4.db) and signons.sqlite files in current directory, 
 but an alternative directory can be provided using the -d option. Do not forget the '/' 
 at the end.
 

@@ -1,5 +1,5 @@
 # decode Firefox passwords (https://github.com/lclevy/firepwd)
-# lclevy@free.fr (28 Aug 2013: initial version, Oct 2016: support for logins.json)
+# lclevy@free.fr (28 Aug 2013: initial version, Oct 2016: support for logins.json, Feb 2018: support for key4.db)
 # for educational purpose only, not production level
 # now integrated into https://github.com/AlessandroZ/LaZagne
 # tested with python 2.7
@@ -73,7 +73,8 @@ def printASN1(d, l, rl):
        printASN1( d[2:], length, rl+1)
        return length   
 
-#extract records from a BSD DB 1.85, hash mode       
+#extract records from a BSD DB 1.85, hash mode  
+#obsolete with Firefox 58.0.2 and NSS 3.35, as key4.db (SQLite) is used     
 def readBsddb(name):   
   f = open(name,'rb')
   #http://download.oracle.com/berkeley-db/db.1.85.tar.gz
@@ -179,9 +180,9 @@ def getLoginData():
     logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row[1]) )
   return logins
 
-def extractSecretKey(masterPassword):
+def extractSecretKey(masterPassword, keyData):
   #see http://www.drh-consultancy.demon.co.uk/key3.html
-  pwdCheck = key3['password-check']
+  pwdCheck = keyData['password-check']
   if options.verbose>1:
     print 'password-check='+hexlify(pwdCheck)
   entrySaltLen = ord(pwdCheck[1])
@@ -189,7 +190,7 @@ def extractSecretKey(masterPassword):
   if options.verbose>1:
     print 'entrySalt=%s' % hexlify(entrySalt)
   encryptedPasswd = pwdCheck[-16:]
-  globalSalt = key3['global-salt']
+  globalSalt = keyData['global-salt']
   if options.verbose>1:
     print 'globalSalt=%s' % hexlify(globalSalt)
   cleartextData = decrypt3DES( globalSalt, masterPassword, entrySalt, encryptedPasswd )
@@ -197,9 +198,9 @@ def extractSecretKey(masterPassword):
     print 'password check error, Master Password is certainly used, please provide it with -p option'
     sys.exit()
 
-  if unhexlify('f8000000000000000000000000000001') not in key3:
+  if unhexlify('f8000000000000000000000000000001') not in keyData:
     return None
-  privKeyEntry = key3[ unhexlify('f8000000000000000000000000000001') ]
+  privKeyEntry = keyData[ unhexlify('f8000000000000000000000000000001') ]
   saltLen = ord( privKeyEntry[1] )
   nameLen = ord( privKeyEntry[2] )
   #print 'saltLen=%d nameLen=%d' % (saltLen, nameLen)
@@ -230,29 +231,81 @@ def extractSecretKey(masterPassword):
     print 'key=%s' % ( hexlify(key) )
   return key
 
+def getKey():  
+  conn = sqlite3.connect(options.directory+'key4.db') #firefox 58.0.2 / NSS 3.35 with key4.db in SQLite
+  c = conn.cursor()
+  try:
+    #first check password
+    c.execute("SELECT item1,item2 FROM metadata WHERE id = 'password';")
+    row = c.next()
+    globalSalt = row[0] #item1
+    item2 = row[1]
+    printASN1(item2, len(item2), 0)
+    """
+     SEQUENCE {
+       SEQUENCE {
+         OBJECTIDENTIFIER 1.2.840.113549.1.12.5.1.3
+         SEQUENCE {
+           OCTETSTRING entry_salt_for_passwd_check
+           INTEGER 01
+         }
+       }
+       OCTETSTRING encrypted_password_check
+     }
+    """
+    decodedItem2 = decoder.decode( item2 ) 
+    entrySalt = decodedItem2[0][0][1][0].asOctets()
+    cipherT = decodedItem2[0][1].asOctets()
+    clearText = decrypt3DES( globalSalt, options.masterPassword, entrySalt, cipherT ) #usual Mozilla PBE
+    print 'password check?', clearText=='password-check\x02\x02'
+    if clearText=='password-check\x02\x02': 
+      #decrypt 3des key to decrypt "logins.json" content
+      c.execute("SELECT a11,a102 FROM nssPrivate;")
+      row = c.next()
+      a11 = row[0] #CKA_VALUE
+      a102 = row[1] #f8000000000000000000000000000001, CKA_ID
+      printASN1( a11, len(a11), 0)
+      """
+       SEQUENCE {
+         SEQUENCE {
+           OBJECTIDENTIFIER 1.2.840.113549.1.12.5.1.3
+           SEQUENCE {
+             OCTETSTRING entry_salt_for_3des_key
+             INTEGER 01
+           }
+         }
+         OCTETSTRING encrypted_3des_key (with 8 bytes of PKCS#7 padding)
+       }
+      """
+      decodedA11 = decoder.decode( a11 ) 
+      entrySalt = decodedA11[0][0][1][0].asOctets()
+      cipherT = decodedA11[0][1].asOctets()
+      
+      key = decrypt3DES( globalSalt, options.masterPassword, entrySalt, cipherT )
+      print '3deskey', hexlify(key)
+  except:
+    keyData = readBsddb(options.directory+'key3.db')
+    key = extractSecretKey(options.masterPassword, keyData)
+  return key[:24]
+  
 parser = OptionParser(usage="usage: %prog [options]")
 parser.add_option("-v", "--verbose", type="int", dest="verbose", help="verbose level", default=0)
 parser.add_option("-p", "--password", type="string", dest="masterPassword", help="masterPassword", default='')
 parser.add_option("-d", "--dir", type="string", dest="directory", help="directory", default='')
 (options, args) = parser.parse_args()
 
-key3 = readBsddb(options.directory+'key3.db')
-
-if ord(key3['Version']) == 3:
-  key = extractSecretKey(options.masterPassword)
-  logins = getLoginData()
-  if len(logins)==0:
-    print 'no stored passwords'
-  else:
-    print 'decrypting login/password pairs'  
-  for i in logins:
-    print '%20s:' % i[2],  #site URL
-    iv = i[0][1]
-    ciphertext = i[0][2] #login (PKCS#7 padding not removed)
-    print repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ), ',',
-    iv = i[1][1]
-    ciphertext = i[1][2] #passwd (PKCS#7 padding not removed)
-    print repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) )
+key = getKey()
+logins = getLoginData()
+if len(logins)==0:
+  print 'no stored passwords'
 else:
-  print 'error key3.db version != 3'
-  sys.exit()
+  print 'decrypting login/password pairs'  
+for i in logins:
+  print '%20s:' % i[2],  #site URL
+  iv = i[0][1]
+  ciphertext = i[0][2] #login (PKCS#7 padding not removed)
+  print repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ), ',',
+  iv = i[1][1]
+  ciphertext = i[1][2] #passwd (PKCS#7 padding not removed)
+  print repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) )
+
