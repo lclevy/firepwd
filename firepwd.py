@@ -283,9 +283,18 @@ def getKey():
       
       key = decrypt3DES( globalSalt, options.masterPassword, entrySalt, cipherT )
       print '3deskey', hexlify(key)
-  except:
-    keyData = readBsddb(options.directory+'key3.db')
-    key = extractSecretKey(options.masterPassword, keyData)
+      print 'key_4', key
+  except Exception as e:
+    print 'get_key_4 e =', e
+    try:
+      keyData = readBsddb(options.directory+'key3.db')
+      key = extractSecretKey(options.masterPassword, keyData)
+    except Exception as ee:
+      print 'get_key_3 ee =', ee
+      sys.exit()
+  if key is None:
+    print 'key_3 is None'
+    sys.exit()
   return key[:24]
   
 parser = OptionParser(usage="usage: %prog [options]")
@@ -301,11 +310,19 @@ if len(logins)==0:
 else:
   print 'decrypting login/password pairs'  
 for i in logins:
-  print '%20s:' % i[2],  #site URL
+  ii = i[2].strip().encode('utf-8')
+  print 'site:    ', ii  #site URL
   iv = i[0][1]
   ciphertext = i[0][2] #login (PKCS#7 padding not removed)
-  print repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ), ',',
+  l = repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ), ',',
+  ll = re.sub('x0[0-9]', '', (l[0]).encode('utf-8'))
+  lll = re.sub(r'\\', '', ll)
+  print 'login:   ', lll[1:-1]
   iv = i[1][1]
   ciphertext = i[1][2] #passwd (PKCS#7 padding not removed)
-  print repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) )
+  p = repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) )
+  pp = re.sub('x0[0-9]', '', p.encode('utf-8'))
+  ppp = re.sub(r'\\', '', pp)
+  print 'password:', ppp[1:-1]
+  print 'password_raw:', p
 
