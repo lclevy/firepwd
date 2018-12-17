@@ -261,7 +261,9 @@ def getKey():
     if clearText=='password-check\x02\x02': 
       #decrypt 3des key to decrypt "logins.json" content
       c.execute("SELECT a11,a102 FROM nssPrivate;")
-      row = c.next()
+      for row in c:
+        if row[0] != None:
+            break
       a11 = row[0] #CKA_VALUE
       a102 = row[1] #f8000000000000000000000000000001, CKA_ID
       printASN1( a11, len(a11), 0)
