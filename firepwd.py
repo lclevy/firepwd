@@ -16,7 +16,7 @@ from pyasn1.codec.der import decoder
 from hashlib import sha1
 import hmac
 from Crypto.Cipher import DES3
-from Crypto.Util.number import long_to_bytes   
+from Crypto.Util.number import long_to_bytes
 from optparse import OptionParser
 import json
    
@@ -34,8 +34,8 @@ oidValues = { '2a864886f70d010c050103': '1.2.840.113549.1.12.5.1.3',
               
 def decrypt3DES( globalSalt, masterPassword, entrySalt, encryptedData ):
   #see http://www.drh-consultancy.demon.co.uk/key3.html
-  hp = sha1( globalSalt+masterPassword ).digest()
-  pes = entrySalt + '\x00'*(20-len(entrySalt))
+  hp = sha1( globalSalt+bytes(masterPassword, "UTF-8")).digest()
+  pes = entrySalt + B'\x00'*(20-len(entrySalt))
   chp = sha1( hp+entrySalt ).digest()
   k1 = hmac.new(chp, pes+entrySalt, sha1).digest()
   tk = hmac.new(chp, pes, sha1).digest()
@@ -113,9 +113,8 @@ def extractSecretKey(masterPassword, keyData):
   return key
 
 def getKey():  
-  conn = sqlite3.connect(options.directory+'key4.db') #firefox 58.0.2 / NSS 3.35 with key4.db in SQLite
-  c = conn.cursor()
-  try:
+    conn = sqlite3.connect(options.directory+'key4.db') #firefox 58.0.2 / NSS 3.35 with key4.db in SQLite
+    c = conn.cursor()
     #first check password
     c.execute("SELECT item1,item2 FROM metadata WHERE id = 'password';")
     row = next(c)
@@ -137,8 +136,8 @@ def getKey():
     entrySalt = decodedItem2[0][0][1][0].asOctets()
     cipherT = decodedItem2[0][1].asOctets()
     clearText = decrypt3DES( globalSalt, options.masterPassword, entrySalt, cipherT ) #usual Mozilla PBE
-    print('password check?', clearText=='password-check\x02\x02')
-    if clearText=='password-check\x02\x02': 
+    print('password check?', clearText == b'password-check\x02\x02')
+    if clearText == b'password-check\x02\x02': 
       #decrypt 3des key to decrypt "logins.json" content
       c.execute("SELECT a11,a102 FROM nssPrivate;")
       for row in c:
@@ -164,24 +163,15 @@ def getKey():
       
       key = decrypt3DES( globalSalt, options.masterPassword, entrySalt, cipherT )
       print('3deskey', hexlify(key))
-  except Exception, err:
-      print(Exception, err)
-  return key[:24]
+      return key[:24]
 
-def depadding(text): # removes PKCS#7 padding
-   last_byte = bytes(text)[-1]
-   length = unpack("b", last_byte)[0]
-   padding = bytes(text)[-length:]
-   if padding == last_byte * length :
-       return text[0:-length]
-   else: # no padding applied
-       return text
   
 parser = OptionParser(usage="usage: %prog [options]")
 parser.add_option("-v", "--verbose", type="int", dest="verbose", help="verbose level", default=0)
 parser.add_option("-p", "--password", type="string", dest="masterPassword", help="masterPassword", default='')
 parser.add_option("-d", "--dir", type="string", dest="directory", help="directory", default='')
 (options, args) = parser.parse_args()
+depadding = lambda x: x[0:-x[-1]] if all([i==x[-1] for i in x[-x[-1]:]]) else x
 
 key = getKey()
 logins = getLoginData()
@@ -191,9 +181,10 @@ else:
   print('decrypting login/password pairs')
 
 for (username, password, site) in logins:
-  print '%20s:' % site,  #site URL
+  print('%20s:' % site, end=' ') #site URL
   key_id, iv, ciphertext = decodeLoginData(username) # username
-  print depadding( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ) + ',',
+  print(depadding( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ), end=', ')
   key_id, iv, ciphertext = decodeLoginData(password) # passwd 
   print(depadding( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ))
+
 
