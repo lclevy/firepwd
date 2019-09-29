@@ -289,6 +289,15 @@ def getKey():
     keyData = readBsddb(options.directory+'key3.db')
     key = extractSecretKey(options.masterPassword, keyData)
   return key[:24]
+
+def depadding(text):
+   last_byte = bytes(text)[-1]
+   length = unpack("b", last_byte)[0]
+   padding = bytes(text)[-length:]
+   if padding == last_byte * length :
+       return text[0:-length]
+   else: # no padding applied
+       return text
   
 parser = OptionParser(usage="usage: %prog [options]")
 parser.add_option("-v", "--verbose", type="int", dest="verbose", help="verbose level", default=0)
@@ -306,8 +315,8 @@ for i in logins:
   print '%20s:' % i[2],  #site URL
   iv = i[0][1]
   ciphertext = i[0][2] #login (PKCS#7 padding not removed)
-  print repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ), ',',
+  print depadding( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ), ',',
   iv = i[1][1]
   ciphertext = i[1][2] #passwd (PKCS#7 padding not removed)
-  print repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) )
+  print depadding( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) )
 
