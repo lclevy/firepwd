@@ -232,9 +232,9 @@ def extractSecretKey(masterPassword, keyData):
   return key
 
 def getKey():  
-  conn = sqlite3.connect(options.directory+'key4.db') #firefox 58.0.2 / NSS 3.35 with key4.db in SQLite
-  c = conn.cursor()
   try:
+    conn = sqlite3.connect(options.directory+'key4.db') #firefox 58.0.2 / NSS 3.35 with key4.db in SQLite
+    c = conn.cursor()
     #first check password
     c.execute("SELECT item1,item2 FROM metadata WHERE id = 'password';")
     row = c.next()
