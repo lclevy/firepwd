@@ -169,7 +169,7 @@ def getLoginData():
     for row in jsonLogins['logins']:
       encUsername = row['encryptedUsername']
       encPassword = row['encryptedPassword']
-      logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row['hostname']) )
+      logins.append( (encUsername, encPassword, row['hostname']) )
     return logins
   #using sqlite3 database
   for row in c:
@@ -177,7 +177,7 @@ def getLoginData():
     encPassword = row[7]
     if options.verbose>1:
       print row[1], encUsername, encPassword
-    logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row[1]) )
+    logins.append( (encUsername, encPassword, row[1]) )
   return logins
 
 def extractSecretKey(masterPassword, keyData):
@@ -290,7 +290,7 @@ def getKey():
     key = extractSecretKey(options.masterPassword, keyData)
   return key[:24]
 
-def depadding(text):
+def depadding(text): # removes PKCS#7 padding
    last_byte = bytes(text)[-1]
    length = unpack("b", last_byte)[0]
    padding = bytes(text)[-length:]
@@ -310,13 +310,12 @@ logins = getLoginData()
 if len(logins)==0:
   print 'no stored passwords'
 else:
-  print 'decrypting login/password pairs'  
+  print 'decrypting login/password pairs'
+
 for i in logins:
   print '%20s:' % i[2],  #site URL
-  iv = i[0][1]
-  ciphertext = i[0][2] #login (PKCS#7 padding not removed)
+  key_id, iv, ciphertext = decodeLoginData(i[0]) # username
   print depadding( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ), ',',
-  iv = i[1][1]
-  ciphertext = i[1][2] #passwd (PKCS#7 padding not removed)
+  key_id, iv, ciphertext = decodeLoginData(i[1]) # passwd 
   print depadding( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) )
 
