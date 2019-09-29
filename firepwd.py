@@ -312,10 +312,10 @@ if len(logins)==0:
 else:
   print 'decrypting login/password pairs'
 
-for i in logins:
-  print '%20s:' % i[2],  #site URL
-  key_id, iv, ciphertext = decodeLoginData(i[0]) # username
+for (username, password, site) in logins:
+  print '%20s:' % site,  #site URL
+  key_id, iv, ciphertext = decodeLoginData(username) # username
   print depadding( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ), ',',
-  key_id, iv, ciphertext = decodeLoginData(i[1]) # passwd 
+  key_id, iv, ciphertext = decodeLoginData(password) # passwd 
   print depadding( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) )
 
