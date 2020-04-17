@@ -1,10 +1,20 @@
-# decode Firefox passwords (https://github.com/lclevy/firepwd)
-# lclevy@free.fr (28 Aug 2013: initial version, Oct 2016: support for logins.json, Feb 2018: support for key4.db)
-# for educational purpose only, not production level
-# now integrated into https://github.com/AlessandroZ/LaZagne
-# tested with python 2.7
-# key3.db is read directly, the 3rd party bsddb python module is NOT needed
-# NSS library is NOT needed
+'''
+ decode Firefox passwords (https://github.com/lclevy/firepwd)
+ 
+ lclevy@free.fr 
+ 28 Aug 2013: initial version, Oct 2016: support for logins.json, Feb 2018: support for key4.db, 
+ Apr2020: support for NSS 3.49 / Firefox 50.0 : https://hg.mozilla.org/projects/nss/rev/fc636973ad06392d11597620b602779b4af312f6
+ 
+ for educational purpose only, not production level
+ integrated into https://github.com/AlessandroZ/LaZagne
+ tested with python 3.7.3, PyCryptodome 3.9.0 and pyasn 0.4.8
+
+ key3.db is read directly, the 3rd party bsddb python module is NOT needed
+ NSS library is NOT needed
+ 
+ profile directory under Win10 is C:\\Users\\[user]\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\[profile_name]
+ 
+''' 
 
 from struct import unpack
 import sys
@@ -13,60 +23,72 @@ import sqlite3
 from base64 import b64decode
 #https://pypi.python.org/pypi/pyasn1/
 from pyasn1.codec.der import decoder
-from hashlib import sha1
+from hashlib import sha1, pbkdf2_hmac
 import hmac
-from Crypto.Cipher import DES3
+from Crypto.Cipher import DES3, AES
 from Crypto.Util.number import long_to_bytes   
 from optparse import OptionParser
 import json
-   
+from os import path
+
 def getShortLE(d, a):
    return unpack('<H',(d)[a:a+2])[0]
 
 def getLongBE(d, a):
    return unpack('>L',(d)[a:a+4])[0]
 
-#minimal 'ASN1 to string' function for displaying Key3.db contents
-asn1Types = { 0x30: 'SEQUENCE',  4:'OCTETSTRING', 6:'OBJECTIDENTIFIER', 2: 'INTEGER', 5:'NULL' }   
-oidValues = { '2a864886f70d010c050103': '1.2.840.113549.1.12.5.1.3',
-              '2a864886f70d0307':'1.2.840.113549.3.7',
-              '2a864886f70d010101':'1.2.840.113549.1.1.1' }   
+#minimal 'ASN1 to string' function for displaying Key3.db and key4.db contents
+asn1Types = { 0x30: 'SEQUENCE',  4:'OCTETSTRING', 6:'OBJECTIDENTIFIER', 2: 'INTEGER', 5:'NULL' }  
+#http://oid-info.com/get/1.2.840.113549.2.9
+oidValues = { b'2a864886f70d010c050103': '1.2.840.113549.1.12.5.1.3 pbeWithSha1AndTripleDES-CBC',
+              b'2a864886f70d0307':'1.2.840.113549.3.7 des-ede3-cbc',
+              b'2a864886f70d010101':'1.2.840.113549.1.1.1 pkcs-1',
+              b'2a864886f70d01050d':'1.2.840.113549.1.5.13 pkcs5 pbes2', 
+              b'2a864886f70d01050c':'1.2.840.113549.1.5.12 pkcs5 PBKDF2',
+              b'2a864886f70d0209':'1.2.840.113549.2.9 hmacWithSHA256',
+              b'60864801650304012a':'2.16.840.1.101.3.4.1.42 aes256-CBC'
+              }   
               
 def printASN1(d, l, rl):
-   type = ord(d[0])
-   length = ord(d[1])
+   type = d[0]
+   length = d[1]
    if length&0x80 > 0: #http://luca.ntop.org/Teaching/Appunti/asn1.html,
      nByteLength = length&0x7f
-     length = ord(d[2])  
+     length = d[2]  
      #Long form. Two to 127 octets. Bit 8 of first octet has value "1" and bits 7-1 give the number of additional length octets. 
      skip=1
    else:
      skip=0    
-   #print '%x:%x' % ( type, length )
-   print '  '*rl, asn1Types[ type ],
+   #print ('%x:%x' % ( type, length ))
+   print ('  '*rl, asn1Types[ type ],end=' ')
    if type==0x30:
-     print '{'
+     print ('{')
      seqLen = length
      readLen = 0
      while seqLen>0:
-       #print seqLen, hexlify(d[2+readLen:])
+       #print(seqLen, hexlify(d[2+readLen:]))
        len2 = printASN1(d[2+skip+readLen:], seqLen, rl+1)
-       #print 'l2=%x' % len2
+       #print('l2=%x' % len2)
        seqLen = seqLen - len2
        readLen = readLen + len2
-     print '  '*rl,'}'
+     print ('  '*rl,'}')
      return length+2
    elif type==6: #OID
-     print oidValues[ hexlify(d[2:2+length]) ]
+     oidVal = hexlify(d[2:2+length])
+     if oidVal in oidValues:
+     #print ( hexlify(d[2:2+length]) )
+       print (oidValues[ hexlify(d[2:2+length]) ])
+     else:
+       print('oid? ', oidVal)
      return length+2
    elif type==4: #OCTETSTRING
-     print hexlify( d[2:2+length] )
+     print (hexlify( d[2:2+length] ))
      return length+2
    elif type==5: #NULL
-     print 0
+     print (0)
      return length+2
    elif type==2: #INTEGER
-     print hexlify( d[2:2+length] )
+     print (hexlify( d[2:2+length] ))
      return length+2
    else:
      if length==l-2:
@@ -81,17 +103,17 @@ def readBsddb(name):
   header = f.read(4*15)
   magic = getLongBE(header,0)
   if magic != 0x61561:
-    print 'bad magic number'
+    print ('bad magic number')
     sys.exit()
   version = getLongBE(header,4)
   if version !=2:
-    print 'bad version, !=2 (1.85)'
+    print ('bad version, !=2 (1.85)')
     sys.exit()
   pagesize = getLongBE(header,12)
   nkeys = getLongBE(header,0x38) 
   if options.verbose>1:
-    print 'pagesize=0x%x' % pagesize
-    print 'nkeys=%d' % nkeys
+    print ('pagesize=0x%x' % pagesize)
+    print ('nkeys=%d' % nkeys)
 
   readkeys = 0
   page = 1
@@ -132,13 +154,13 @@ def readBsddb(name):
     db[ db1[i+1] ] = db1[ i ]
   if options.verbose>1:
     for i in db:
-      print '%s: %s' % ( repr(i), hexlify(db[i]) )
+      print ('%s: %s' % ( repr(i), hexlify(db[i]) ))
   return db  
 
-def decrypt3DES( globalSalt, masterPassword, entrySalt, encryptedData ):
+def decryptMoz3DES( globalSalt, masterPassword, entrySalt, encryptedData ):
   #see http://www.drh-consultancy.demon.co.uk/key3.html
   hp = sha1( globalSalt+masterPassword ).digest()
-  pes = entrySalt + '\x00'*(20-len(entrySalt))
+  pes = entrySalt + b'\x00'*(20-len(entrySalt))
   chp = sha1( hp+entrySalt ).digest()
   k1 = hmac.new(chp, pes+entrySalt, sha1).digest()
   tk = hmac.new(chp, pes, sha1).digest()
@@ -147,7 +169,7 @@ def decrypt3DES( globalSalt, masterPassword, entrySalt, encryptedData ):
   iv = k[-8:]
   key = k[:24]
   if options.verbose>0:
-    print 'key='+hexlify(key), 'iv='+hexlify(iv)
+    print ('key= %s, iv=%s' % ( hexlify(key), hexlify(iv) ) )
   return DES3.new( key, DES3.MODE_CBC, iv).decrypt(encryptedData)
 
 def decodeLoginData(data):
@@ -155,111 +177,188 @@ def decodeLoginData(data):
   return asn1data[0][0].asOctets(), asn1data[0][1][1].asOctets(), asn1data[0][2].asOctets() #for login and password, keep :(key_id, iv, ciphertext)
   
 def getLoginData():
-  conn = sqlite3.connect(options.directory+'signons.sqlite')
   logins = []
-  c = conn.cursor()
-  try:
+  sqlite_file = options.directory+'signons.sqlite' #firefox < 32
+  if path.exists(sqlite_file):
+    conn = sqlite3.connect(sqlite_file)
+    c = conn.cursor()
     c.execute("SELECT * FROM moz_logins;")
-  except sqlite3.OperationalError: #since Firefox 32, json is used instead of sqlite3
+    for row in c:
+      encUsername = row[6]
+      encPassword = row[7]
+      if options.verbose>1:
+        print (row[1], encUsername, encPassword)
+      logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row[1]) )
+    return logins
+  else: #since Firefox 32, json is used instead of sqlite3
     loginf = open(options.directory+'logins.json','r').read()
     jsonLogins = json.loads(loginf)
     if 'logins' not in jsonLogins:
-      print 'error: no \'logins\' key in logins.json'
+      print ('error: no \'logins\' key in logins.json')
       return []
     for row in jsonLogins['logins']:
       encUsername = row['encryptedUsername']
       encPassword = row['encryptedPassword']
       logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row['hostname']) )
     return logins
-  #using sqlite3 database
-  for row in c:
-    encUsername = row[6]
-    encPassword = row[7]
-    if options.verbose>1:
-      print row[1], encUsername, encPassword
-    logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row[1]) )
-  return logins
 
-def extractSecretKey(masterPassword, keyData):
+def extractSecretKey(masterPassword, keyData): #3DES
   #see http://www.drh-consultancy.demon.co.uk/key3.html
-  pwdCheck = keyData['password-check']
-  if options.verbose>1:
-    print 'password-check='+hexlify(pwdCheck)
-  entrySaltLen = ord(pwdCheck[1])
+  pwdCheck = keyData[b'password-check']
+  entrySaltLen = pwdCheck[1]
   entrySalt = pwdCheck[3: 3+entrySaltLen]
-  if options.verbose>1:
-    print 'entrySalt=%s' % hexlify(entrySalt)
   encryptedPasswd = pwdCheck[-16:]
-  globalSalt = keyData['global-salt']
+  globalSalt = keyData[b'global-salt']
   if options.verbose>1:
-    print 'globalSalt=%s' % hexlify(globalSalt)
-  cleartextData = decrypt3DES( globalSalt, masterPassword, entrySalt, encryptedPasswd )
-  if cleartextData != 'password-check\x02\x02':
-    print 'password check error, Master Password is certainly used, please provide it with -p option'
+    print ('password-check=%s'% hexlify(pwdCheck))
+    print ('entrySalt=%s' % hexlify(entrySalt))
+    print ('globalSalt=%s' % hexlify(globalSalt))
+  cleartextData = decryptMoz3DES( globalSalt, masterPassword, entrySalt, encryptedPasswd )
+  if cleartextData != b'password-check\x02\x02':
+    print ('password check error, Master Password is certainly used, please provide it with -p option')
     sys.exit()
 
   if unhexlify('f8000000000000000000000000000001') not in keyData:
     return None
   privKeyEntry = keyData[ unhexlify('f8000000000000000000000000000001') ]
-  saltLen = ord( privKeyEntry[1] )
-  nameLen = ord( privKeyEntry[2] )
+  saltLen = privKeyEntry[1]
+  nameLen = privKeyEntry[2]
   #print 'saltLen=%d nameLen=%d' % (saltLen, nameLen)
   privKeyEntryASN1 = decoder.decode( privKeyEntry[3+saltLen+nameLen:] )
   data = privKeyEntry[3+saltLen+nameLen:]
   printASN1(data, len(data), 0)
   #see https://github.com/philsmd/pswRecovery4Moz/blob/master/pswRecovery4Moz.txt
+  '''
+   SEQUENCE {
+     SEQUENCE {
+       OBJECTIDENTIFIER 1.2.840.113549.1.12.5.1.3 pbeWithSha1AndTripleDES-CBC
+       SEQUENCE {
+         OCTETSTRING entrySalt
+         INTEGER 01
+       }
+     }
+     OCTETSTRING privKeyData
+   }
+  '''
   entrySalt = privKeyEntryASN1[0][0][1][0].asOctets()
-  if options.verbose>0:
-    print 'entrySalt=%s' % hexlify(entrySalt)
   privKeyData = privKeyEntryASN1[0][1].asOctets()
+  privKey = decryptMoz3DES( globalSalt, masterPassword, entrySalt, privKeyData )
+  print ('decrypting privKeyData')
   if options.verbose>0:
-    print 'privKeyData=%s' % hexlify(privKeyData)
-  privKey = decrypt3DES( globalSalt, masterPassword, entrySalt, privKeyData )
-  print 'decrypting privKeyData'
-  if options.verbose>0:
-    print 'decrypted=%s' % hexlify(privKey)
+    print ('entrySalt=%s' % hexlify(entrySalt))
+    print ('privKeyData=%s' % hexlify(privKeyData))
+    print ('decrypted=%s' % hexlify(privKey))
   printASN1(privKey, len(privKey), 0)
-
+  '''
+   SEQUENCE {
+     INTEGER 00
+     SEQUENCE {
+       OBJECTIDENTIFIER 1.2.840.113549.1.1.1 pkcs-1
+       NULL 0
+     }
+     OCTETSTRING prKey seq
+   }
+  ''' 
   privKeyASN1 = decoder.decode( privKey )
   prKey= privKeyASN1[0][2].asOctets()
-  print 'decoding %s' % hexlify(prKey)
+  print ('decoding %s' % hexlify(prKey))
   printASN1(prKey, len(prKey), 0)
+  '''
+   SEQUENCE {
+     INTEGER 00
+     INTEGER 00f8000000000000000000000000000001
+     INTEGER 00
+     INTEGER 3DES_private_key
+     INTEGER 00
+     INTEGER 00
+     INTEGER 00
+     INTEGER 00
+     INTEGER 15
+   }
+  '''
   prKeyASN1 = decoder.decode( prKey )
   id = prKeyASN1[0][1]
   key = long_to_bytes( prKeyASN1[0][3] )
   if options.verbose>0:
-    print 'key=%s' % ( hexlify(key) )
+    print ('key=%s' % ( hexlify(key) ))
   return key
 
-def getKey():  
-  conn = sqlite3.connect(options.directory+'key4.db') #firefox 58.0.2 / NSS 3.35 with key4.db in SQLite
-  c = conn.cursor()
-  try:
-    #first check password
-    c.execute("SELECT item1,item2 FROM metadata WHERE id = 'password';")
-    row = c.next()
-    globalSalt = row[0] #item1
-    item2 = row[1]
-    printASN1(item2, len(item2), 0)
+def decryptPBE(decodedItem, masterPassword, globalSalt):
+  pbeAlgo = str(decodedItem[0][0][0])
+  if pbeAlgo == '1.2.840.113549.1.12.5.1.3': #pbeWithSha1AndTripleDES-CBC
     """
      SEQUENCE {
        SEQUENCE {
          OBJECTIDENTIFIER 1.2.840.113549.1.12.5.1.3
          SEQUENCE {
-           OCTETSTRING entry_salt_for_passwd_check
+           OCTETSTRING entry_salt
            INTEGER 01
          }
        }
-       OCTETSTRING encrypted_password_check
+       OCTETSTRING encrypted
      }
     """
+    entrySalt = decodedItem[0][0][1][0].asOctets()
+    cipherT = decodedItem[0][1].asOctets()
+    print('entrySalt:',hexlify(entrySalt))
+    key = decryptMoz3DES( globalSalt, masterPassword, entrySalt, cipherT )
+    print(hexlify(key))
+    return key[:24], pbeAlgo
+  elif pbeAlgo == '1.2.840.113549.1.5.13': #pkcs5 pbes2  
+    #https://phabricator.services.mozilla.com/rNSSfc636973ad06392d11597620b602779b4af312f6
+    '''
+    SEQUENCE {
+      SEQUENCE {
+        OBJECTIDENTIFIER 1.2.840.113549.1.5.13 pkcs5 pbes2
+        SEQUENCE {
+          SEQUENCE {
+            OBJECTIDENTIFIER 1.2.840.113549.1.5.12 pkcs5 PBKDF2
+            SEQUENCE {
+              OCTETSTRING 32 bytes, entrySalt
+              INTEGER 01
+              INTEGER 20
+              SEQUENCE {
+                OBJECTIDENTIFIER 1.2.840.113549.2.9 hmacWithSHA256
+              }
+            }
+          }
+          SEQUENCE {
+            OBJECTIDENTIFIER 2.16.840.1.101.3.4.1.42 aes256-CBC
+            OCTETSTRING 14 bytes, iv 
+          }
+        }
+      }
+      OCTETSTRING encrypted
+    }
+    '''
+    entrySalt = decodedItem[0][0][1][0][1][0].asOctets()
+
+    k = sha1(globalSalt+masterPassword).digest()
+    key = pbkdf2_hmac('sha256', k, entrySalt, 1, dklen=32)    
+
+    iv = b'\x04\x0e'+decodedItem[0][0][1][1][1].asOctets()
+    cipherT = decodedItem[0][1].asOctets()
+    clearText = AES.new(key, AES.MODE_CBC, iv).decrypt(cipherT)
+    
+    print('clearText', hexlify(clearText))
+    return clearText, pbeAlgo
+
+def getKey( masterPassword, directory ):  
+  if path.exists(directory+'key4.db'):
+    conn = sqlite3.connect(directory+'key4.db') #firefox 58.0.2 / NSS 3.35 with key4.db in SQLite
+    c = conn.cursor()
+    #first check password
+    c.execute("SELECT item1,item2 FROM metadata WHERE id = 'password';")
+    row = c.fetchone()
+    globalSalt = row[0] #item1
+    print('globalSalt:',hexlify(globalSalt))
+    item2 = row[1]
+    printASN1(item2, len(item2), 0)
     decodedItem2 = decoder.decode( item2 ) 
-    entrySalt = decodedItem2[0][0][1][0].asOctets()
-    cipherT = decodedItem2[0][1].asOctets()
-    clearText = decrypt3DES( globalSalt, options.masterPassword, entrySalt, cipherT ) #usual Mozilla PBE
-    print 'password check?', clearText=='password-check\x02\x02'
-    if clearText=='password-check\x02\x02': 
-      #decrypt 3des key to decrypt "logins.json" content
+    clearText, algo = decryptPBE( decodedItem2, masterPassword, globalSalt )
+   
+    print ('password check?', clearText==b'password-check\x02\x02')
+    if clearText == b'password-check\x02\x02': 
       c.execute("SELECT a11,a102 FROM nssPrivate;")
       for row in c:
         if row[0] != None:
@@ -267,47 +366,38 @@ def getKey():
       a11 = row[0] #CKA_VALUE
       a102 = row[1] #f8000000000000000000000000000001, CKA_ID
       printASN1( a11, len(a11), 0)
-      """
-       SEQUENCE {
-         SEQUENCE {
-           OBJECTIDENTIFIER 1.2.840.113549.1.12.5.1.3
-           SEQUENCE {
-             OCTETSTRING entry_salt_for_3des_key
-             INTEGER 01
-           }
-         }
-         OCTETSTRING encrypted_3des_key (with 8 bytes of PKCS#7 padding)
-       }
-      """
-      decodedA11 = decoder.decode( a11 ) 
-      entrySalt = decodedA11[0][0][1][0].asOctets()
-      cipherT = decodedA11[0][1].asOctets()
-      
-      key = decrypt3DES( globalSalt, options.masterPassword, entrySalt, cipherT )
-      print '3deskey', hexlify(key)
-  except:
-    keyData = readBsddb(options.directory+'key3.db')
-    key = extractSecretKey(options.masterPassword, keyData)
-  return key[:24]
-  
+      decoded_a11 = decoder.decode( a11 )
+      #decrypt master key
+      clearText, algo = decryptPBE( decoded_a11, masterPassword, globalSalt )
+      return clearText[:24], algo
+    else:   
+      return None, None
+  else:
+    keyData = readBsddb(directory+'key3.db')
+    key = extractSecretKey(masterPassword, keyData)
+    return key, '1.2.840.113549.1.12.5.1.3'
+
+
 parser = OptionParser(usage="usage: %prog [options]")
 parser.add_option("-v", "--verbose", type="int", dest="verbose", help="verbose level", default=0)
 parser.add_option("-p", "--password", type="string", dest="masterPassword", help="masterPassword", default='')
 parser.add_option("-d", "--dir", type="string", dest="directory", help="directory", default='')
 (options, args) = parser.parse_args()
 
-key = getKey()
+key, algo = getKey(  options.masterPassword.encode(), options.directory )
+#print(hexlify(key))
 logins = getLoginData()
 if len(logins)==0:
-  print 'no stored passwords'
+  print ('no stored passwords')
 else:
-  print 'decrypting login/password pairs'  
-for i in logins:
-  print '%20s:' % i[2],  #site URL
-  iv = i[0][1]
-  ciphertext = i[0][2] #login (PKCS#7 padding not removed)
-  print repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ), ',',
-  iv = i[1][1]
-  ciphertext = i[1][2] #passwd (PKCS#7 padding not removed)
-  print repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) )
-
+  print ('decrypting login/password pairs' ) 
+if algo == '1.2.840.113549.1.12.5.1.3' or algo == '1.2.840.113549.1.5.13':  
+  for i in logins:
+    print ('%20s:' % i[2],end='')  #site URL
+    iv = i[0][1]
+    ciphertext = i[0][2] #login (PKCS#7 padding not removed)
+    print (repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ), end=',')
+    iv = i[1][1]
+    ciphertext = i[1][2] #passwd (PKCS#7 padding not removed)
+    print (repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ))
+ 
