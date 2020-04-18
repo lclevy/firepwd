@@ -1,12 +1,13 @@
-firepwd.py, an open source tool to decrypt Mozilla protected passwords 
-----------------------------------------------------------------------
+# Firepwd.py, an open source tool to decrypt Mozilla protected passwords 
 
+18apr2020
 
-Introduction
-************
+### Introduction
 
 This educational tool was written to illustrate how Mozilla passwords (Firefox, Thunderbird) are protected
-using contents of files key3.db (or key4.db), logins.json (or signons.sqlite).
+using contents of files key4.db (or key3.db), logins.json (or signons.sqlite).
+
+NSS library is NOT used. Only python is used (PyCryptodome, pyasn1)
 
 Reference documents are:
 - Into the Black Box: A Case Study in Obtaining Visibility into Commercial Software, 
@@ -18,26 +19,31 @@ http://arc.info/?l=openssl-dev&m=93378860132031&w=2
 
 This code is released under GPL license.
 
-Now part of LaZagne project:
-https://github.com/AlessandroZ/LaZagne
+Now part of LaZagne project: https://github.com/AlessandroZ/LaZagne
 
 
 You can also read the related article, in french:
 http://connect.ed-diamond.com/MISC/MISC-069/Protection-des-mots-de-passe-par-Firefox-et-Thunderbird-analyse-par-la-pratique
 
+### Versions supported
 
+- Firefox <32 (key3.db, signons.sqlite)
+- Firefox >=32 (key3.db, logins.json) 
+- Firefox >=58.0.2 (key4.db, logins.json)
+- Firefix >=75.0 (sha1 pbkdf2 sha256 aes256 cbc used by key4.db, logins.json)
 
-Usage
-*****
+key3.db is read directly, the 3rd party bsddb python module is NOT needed.
 
-By default, firepwd.py processes key3.db (or key4.db) and signons.sqlite files in current directory, 
-but an alternative directory can be provided using the -d option. Do not forget the '/' 
+### Usage
+
+By default, firepwd.py processes key3.db (or key4.db) and signons.sqlite (logins.json) files in current directory, but an alternative directory can be provided using the -d option. Do not forget the '/' 
 at the end.
 
 If a master password has been set, provide it using the -p option.
 
-Valid verbose levels (-v) are from 0 (default) to 2.
+### Valid verbose levels (-v) are from 0 (default) to 2.
 
+```
 $ python firepwd.py -h
 Usage: firepwd.py [options] 
 
@@ -138,17 +144,74 @@ $ python firepwd.py -d /c/Users/laurent/AppData/Roaming/Mozilla/Firefox/Profiles
 decrypting privKeyData
 [...]
 
+>python firepwd.py -v 2 -p MISC* -d ff50\
+globalSalt: b'5ed0adce15d896b84115f530be4e259f72beda91'
+ SEQUENCE {
+   SEQUENCE {
+     OBJECTIDENTIFIER 1.2.840.113549.1.5.13 pkcs5 pbes2
+     SEQUENCE {
+       SEQUENCE {
+         OBJECTIDENTIFIER 1.2.840.113549.1.5.12 pkcs5 PBKDF2
+         SEQUENCE {
+           OCTETSTRING b'f92dde91809b8b00c6607b73f3d0321c80f930aa13f13da5293aede76ee92048'
+           INTEGER b'01'
+           INTEGER b'20'
+           SEQUENCE {
+             OBJECTIDENTIFIER 1.2.840.113549.2.9 hmacWithSHA256
+           }
+         }
+       }
+       SEQUENCE {
+         OBJECTIDENTIFIER 2.16.840.1.101.3.4.1.42 aes256-CBC
+         OCTETSTRING b'd7f6eef452a0becb5227af2e175c'
+       }
+     }
+   }
+   OCTETSTRING b'9ef5288ba19326df7188f1f0d1811c2a'
+ }
+clearText b'70617373776f72642d636865636b0202'
+password check? True
+ SEQUENCE {
+   SEQUENCE {
+     OBJECTIDENTIFIER 1.2.840.113549.1.5.13 pkcs5 pbes2
+     SEQUENCE {
+       SEQUENCE {
+         OBJECTIDENTIFIER 1.2.840.113549.1.5.12 pkcs5 PBKDF2
+         SEQUENCE {
+           OCTETSTRING b'86535fdbbc242465d6e8477094b93221c9cc45bb363141e177ae2801e1972b32'
+           INTEGER b'01'
+           INTEGER b'20'
+           SEQUENCE {
+             OBJECTIDENTIFIER 1.2.840.113549.2.9 hmacWithSHA256
+           }
+         }
+       }
+       SEQUENCE {
+         OBJECTIDENTIFIER 2.16.840.1.101.3.4.1.42 aes256-CBC
+         OCTETSTRING b'4de278f3bc4cf8e503ce0b8672ec'
+       }
+     }
+   }
+   OCTETSTRING b'62093ca8bb60c0416b5e7bee18402b99c21e780985ff75737fb8a493a858aaf2'
+ }
+clearText b'7f914a642a4552b0e0c7a87061fe5d9437a41968c4a7d35e0808080808080808'
+decrypting login/password pairs
+[...]
 
-Installation
-************
+```
 
-written for Python 2.7
+### Installation
 
-modules required:
+```
+pip install -r requirements.txt
+```
+
+Tested with python 3.7.3, PyCryptodome 3.9.0 and pyasn 0.4.8
+
+Modules required:
 - pyasn1,  https://pypi.python.org/pypi/pyasn1/, for ASN1 decoding
-- PyCrypto, https://www.dlitz.net/software/pycrypto/, for 3DES EDE decryption
-
-key3.db is read directly, the 3rd party bsddb python module is NOT needed.
+- PyCryptodome, https://www.pycryptodome.org/en/latest/, for 3DES and AES decryption
 
 
----end of transmission---
+
+
