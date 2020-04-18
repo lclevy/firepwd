@@ -9,28 +9,23 @@ using contents of files key4.db (or key3.db), logins.json (or signons.sqlite).
 
 NSS library is NOT used. Only python is used (PyCryptodome, pyasn1)
 
-Reference documents are:
-- Into the Black Box: A Case Study in Obtaining Visibility into Commercial Software, 
-D. Plakosh, S. Hissam, K. Wallnau, March 1999, Carnegie Mellon University :
-http://www.sei.cmu.edu/library/abstracts/reports/99tn010.cfm
-- Dr. Stephen Henson, August 4th 1999 :
-http://arc.info/?l=openssl-dev&m=93378860132031&w=2
-
 
 This code is released under GPL license.
 
 Now part of LaZagne project: https://github.com/AlessandroZ/LaZagne
 
-
 You can also read the related article, in french:
-http://connect.ed-diamond.com/MISC/MISC-069/Protection-des-mots-de-passe-par-Firefox-et-Thunderbird-analyse-par-la-pratique
+http://connect.ed-diamond.com/MISC/MISC-069/Protection-des-mots-de-passe-par-Firefox-et-Thunderbird-analyse-par-la-pratique 
+
+or this [poster](https://github.com/lclevy/firepwd/raw/master/mozilla_pbe.pdf) for the password crypto of key3.db and signons.sqlite.
 
 ### Versions supported
 
 - Firefox <32 (key3.db, signons.sqlite)
 - Firefox >=32 (key3.db, logins.json) 
 - Firefox >=58.0.2 (key4.db, logins.json)
-- Firefix >=75.0 (sha1 pbkdf2 sha256 aes256 cbc used by key4.db, logins.json)
+- Firefox >=75.0 (sha1 pbkdf2 sha256 aes256 cbc used by key4.db, logins.json)
+- at least Thunderbird 68.7.0, likely other versions
 
 key3.db is read directly, the 3rd party bsddb python module is NOT needed.
 
@@ -211,6 +206,14 @@ Tested with python 3.7.3, PyCryptodome 3.9.0 and pyasn 0.4.8
 Modules required:
 - pyasn1,  https://pypi.python.org/pypi/pyasn1/, for ASN1 decoding
 - PyCryptodome, https://www.pycryptodome.org/en/latest/, for 3DES and AES decryption
+
+### Reference documents
+
+- Into the Black Box: A Case Study in Obtaining Visibility into Commercial Software, 
+  D. Plakosh, S. Hissam, K. Wallnau, March 1999, Carnegie Mellon University :
+  http://www.sei.cmu.edu/library/abstracts/reports/99tn010.cfm
+- Dr. Stephen Henson, August 4th 1999 :
+  http://arc.info/?l=openssl-dev&m=93378860132031&w=2
 
 
 
