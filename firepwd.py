@@ -3,7 +3,7 @@
  
  lclevy@free.fr 
  28 Aug 2013: initial version, Oct 2016: support for logins.json, Feb 2018: support for key4.db, 
- Apr2020: support for NSS 3.49 / Firefox 50.0 : https://hg.mozilla.org/projects/nss/rev/fc636973ad06392d11597620b602779b4af312f6
+ Apr2020: support for NSS 3.49 / Firefox 75.0 : https://hg.mozilla.org/projects/nss/rev/fc636973ad06392d11597620b602779b4af312f6
  
  for educational purpose only, not production level
  integrated into https://github.com/AlessandroZ/LaZagne
@@ -26,7 +26,8 @@ from pyasn1.codec.der import decoder
 from hashlib import sha1, pbkdf2_hmac
 import hmac
 from Crypto.Cipher import DES3, AES
-from Crypto.Util.number import long_to_bytes   
+from Crypto.Util.number import long_to_bytes
+from Crypto.Util.Padding import unpad   
 from optparse import OptionParser
 import json
 from os import path
@@ -188,8 +189,21 @@ def decodeLoginData(data):
   
 def getLoginData():
   logins = []
-  sqlite_file = options.directory+'signons.sqlite' #firefox < 32
-  if path.exists(sqlite_file):
+  sqlite_file = options.directory+'signons.sqlite' 
+  json_file = options.directory+'logins.json'
+  if path.exists(json_file): #since Firefox 32, json is used instead of sqlite3
+    loginf = open( json_file, 'r').read()
+    jsonLogins = json.loads(loginf)
+    if 'logins' not in jsonLogins:
+      print ('error: no \'logins\' key in logins.json')
+      return []
+    for row in jsonLogins['logins']:
+      encUsername = row['encryptedUsername']
+      encPassword = row['encryptedPassword']
+      logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row['hostname']) )
+    return logins  
+  elif path.exists(sqlite_file): #firefox < 32
+    print('sqlite')
     conn = sqlite3.connect(sqlite_file)
     c = conn.cursor()
     c.execute("SELECT * FROM moz_logins;")
@@ -200,17 +214,10 @@ def getLoginData():
         print (row[1], encUsername, encPassword)
       logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row[1]) )
     return logins
-  else: #since Firefox 32, json is used instead of sqlite3
-    loginf = open(options.directory+'logins.json','r').read()
-    jsonLogins = json.loads(loginf)
-    if 'logins' not in jsonLogins:
-      print ('error: no \'logins\' key in logins.json')
-      return []
-    for row in jsonLogins['logins']:
-      encUsername = row['encryptedUsername']
-      encPassword = row['encryptedPassword']
-      logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row['hostname']) )
-    return logins
+  else: 
+    print('missing logins.json ot signons.sqlite')
+
+CKA_ID = unhexlify('f8000000000000000000000000000001')
 
 def extractSecretKey(masterPassword, keyData): #3DES
   #see http://www.drh-consultancy.demon.co.uk/key3.html
@@ -228,9 +235,9 @@ def extractSecretKey(masterPassword, keyData): #3DES
     print ('password check error, Master Password is certainly used, please provide it with -p option')
     sys.exit()
 
-  if unhexlify('f8000000000000000000000000000001') not in keyData:
+  if CKA_ID not in keyData:
     return None
-  privKeyEntry = keyData[ unhexlify('f8000000000000000000000000000001') ]
+  privKeyEntry = keyData[ CKA_ID ]
   saltLen = privKeyEntry[1]
   nameLen = privKeyEntry[2]
   #print 'saltLen=%d nameLen=%d' % (saltLen, nameLen)
@@ -378,7 +385,8 @@ def getKey( masterPassword, directory ):
         if row[0] != None:
             break
       a11 = row[0] #CKA_VALUE
-      a102 = row[1] #f8000000000000000000000000000001, CKA_ID
+      a102 = row[1] 
+      assert a102 == CKA_ID 
       printASN1( a11, len(a11), 0)
       decoded_a11 = decoder.decode( a11 )
       #decrypt master key
@@ -407,11 +415,12 @@ else:
   print ('decrypting login/password pairs' ) 
 if algo == '1.2.840.113549.1.12.5.1.3' or algo == '1.2.840.113549.1.5.13':  
   for i in logins:
-    print ('%20s:' % i[2],end='')  #site URL
+    assert i[0][0] == CKA_ID
+    print ('%20s:' % (i[2]),end='')  #site URL
     iv = i[0][1]
-    ciphertext = i[0][2] #login (PKCS#7 padding not removed)
-    print (repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ), end=',')
+    ciphertext = i[0][2] 
+    print ( unpad( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext),8 ), end=',')
     iv = i[1][1]
-    ciphertext = i[1][2] #passwd (PKCS#7 padding not removed)
-    print (repr( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext) ))
+    ciphertext = i[1][2] 
+    print ( unpad( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext),8 ) )
  
