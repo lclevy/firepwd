@@ -175,17 +175,20 @@ def decryptMoz3DES( globalSalt, masterPassword, entrySalt, encryptedData ):
 
 def decodeLoginData(data):
   '''
-   SEQUENCE {
-   OCTETSTRING b'f8000000000000000000000000000001'
-   SEQUENCE {
-     OBJECTIDENTIFIER 1.2.840.113549.3.7 des-ede3-cbc
-     OCTETSTRING iv 8 bytes
-   }
-   OCTETSTRING encrypted
- }
+  SEQUENCE {
+    OCTETSTRING b'f8000000000000000000000000000001'
+    SEQUENCE {
+      OBJECTIDENTIFIER 1.2.840.113549.3.7 des-ede3-cbc
+      OCTETSTRING iv 8 bytes
+    }
+    OCTETSTRING encrypted
+  }
   '''
   asn1data = decoder.decode(b64decode(data)) #first base64 decoding, then ASN1DERdecode
-  return asn1data[0][0].asOctets(), asn1data[0][1][1].asOctets(), asn1data[0][2].asOctets() #for login and password, keep :(key_id, iv, ciphertext)
+  key_id = asn1data[0][0].asOctets()
+  iv = asn1data[0][1][1].asOctets()
+  ciphertext = asn1data[0][2].asOctets()
+  return key_id, iv, ciphertext 
   
 def getLoginData():
   logins = []
@@ -215,7 +218,7 @@ def getLoginData():
       logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row[1]) )
     return logins
   else: 
-    print('missing logins.json ot signons.sqlite')
+    print('missing logins.json or signons.sqlite')
 
 CKA_ID = unhexlify('f8000000000000000000000000000001')
 
@@ -351,13 +354,17 @@ def decryptPBE(decodedItem, masterPassword, globalSalt):
     assert str(decodedItem[0][0][1][0][0]) == '1.2.840.113549.1.5.12'
     assert str(decodedItem[0][0][1][0][1][3][0]) == '1.2.840.113549.2.9'
     assert str(decodedItem[0][0][1][1][0]) == '2.16.840.1.101.3.4.1.42'
+    # https://tools.ietf.org/html/rfc8018#page-23
     entrySalt = decodedItem[0][0][1][0][1][0].asOctets()
+    iterationCount = int(decodedItem[0][0][1][0][1][1])
+    keyLength = int(decodedItem[0][0][1][0][1][2])
+    assert keyLength == 32 
 
     k = sha1(globalSalt+masterPassword).digest()
-    key = pbkdf2_hmac('sha256', k, entrySalt, 1, dklen=32)    
+    key = pbkdf2_hmac('sha256', k, entrySalt, iterationCount, dklen=keyLength)    
 
     iv = b'\x04\x0e'+decodedItem[0][0][1][1][1].asOctets() #https://hg.mozilla.org/projects/nss/rev/fc636973ad06392d11597620b602779b4af312f6#l6.49
-    # 04 is OCTETSTRING, 0xe is length == 14
+    # 04 is OCTETSTRING, 0x0e is length == 14
     cipherT = decodedItem[0][1].asOctets()
     clearText = AES.new(key, AES.MODE_CBC, iv).decrypt(cipherT)
     
@@ -394,10 +401,13 @@ def getKey( masterPassword, directory ):
       return clearText[:24], algo
     else:   
       return None, None
-  else:
+  elif path.exists(directory+'key3.db'):
     keyData = readBsddb(directory+'key3.db')
     key = extractSecretKey(masterPassword, keyData)
     return key, '1.2.840.113549.1.12.5.1.3'
+  else:
+    print('cannot find key4.db or key3.db')  
+    return None, None
 
 
 parser = OptionParser(usage="usage: %prog [options]")
@@ -407,6 +417,8 @@ parser.add_option("-d", "--dir", type="string", dest="directory", help="director
 (options, args) = parser.parse_args()
 
 key, algo = getKey(  options.masterPassword.encode(), options.directory )
+if key==None:
+  sys.exit()
 #print(hexlify(key))
 logins = getLoginData()
 if len(logins)==0:
