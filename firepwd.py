@@ -393,14 +393,15 @@ def getKey( masterPassword, directory ):
             break
       a11 = row[0] #CKA_VALUE
       a102 = row[1] 
-      assert a102 == CKA_ID 
-      printASN1( a11, len(a11), 0)
-      decoded_a11 = decoder.decode( a11 )
-      #decrypt master key
-      clearText, algo = decryptPBE( decoded_a11, masterPassword, globalSalt )
-      return clearText[:24], algo
-    else:   
-      return None, None
+      if a102 == CKA_ID: 
+        printASN1( a11, len(a11), 0)
+        decoded_a11 = decoder.decode( a11 )
+        #decrypt master key
+        clearText, algo = decryptPBE( decoded_a11, masterPassword, globalSalt )
+        return clearText[:24], algo
+      else:
+        print('no saved login/password')      
+    return None, None
   elif path.exists(directory+'key3.db'):
     keyData = readBsddb(directory+'key3.db')
     key = extractSecretKey(masterPassword, keyData)
