@@ -30,7 +30,7 @@ from Crypto.Util.number import long_to_bytes
 from Crypto.Util.Padding import unpad   
 from optparse import OptionParser
 import json
-from os import path
+from pathlib import Path
 
 def getShortLE(d, a):
    return unpack('<H',(d)[a:a+2])[0]
@@ -192,9 +192,9 @@ def decodeLoginData(data):
   
 def getLoginData():
   logins = []
-  sqlite_file = options.directory+'signons.sqlite' 
-  json_file = options.directory+'logins.json'
-  if path.exists(json_file): #since Firefox 32, json is used instead of sqlite3
+  sqlite_file = options.directory / 'signons.sqlite'
+  json_file = options.directory / 'logins.json'
+  if json_file.exists(): #since Firefox 32, json is used instead of sqlite3
     loginf = open( json_file, 'r').read()
     jsonLogins = json.loads(loginf)
     if 'logins' not in jsonLogins:
@@ -205,7 +205,7 @@ def getLoginData():
       encPassword = row['encryptedPassword']
       logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row['hostname']) )
     return logins  
-  elif path.exists(sqlite_file): #firefox < 32
+  elif sqlite_file.exists(): #firefox < 32
     print('sqlite')
     conn = sqlite3.connect(sqlite_file)
     c = conn.cursor()
@@ -372,8 +372,8 @@ def decryptPBE(decodedItem, masterPassword, globalSalt):
     return clearText, pbeAlgo
 
 def getKey( masterPassword, directory ):  
-  if path.exists(directory+'key4.db'):
-    conn = sqlite3.connect(directory+'key4.db') #firefox 58.0.2 / NSS 3.35 with key4.db in SQLite
+  if (directory / 'key4.db').exists():
+    conn = sqlite3.connect(directory / 'key4.db') #firefox 58.0.2 / NSS 3.35 with key4.db in SQLite
     c = conn.cursor()
     #first check password
     c.execute("SELECT item1,item2 FROM metadata WHERE id = 'password';")
@@ -402,7 +402,7 @@ def getKey( masterPassword, directory ):
       else:
         print('no saved login/password')      
     return None, None
-  elif path.exists(directory+'key3.db'):
+  elif (directory / 'key3.db').exists():
     keyData = readBsddb(directory+'key3.db')
     key = extractSecretKey(masterPassword, keyData)
     return key, '1.2.840.113549.1.12.5.1.3'
@@ -416,6 +416,7 @@ parser.add_option("-v", "--verbose", type="int", dest="verbose", help="verbose l
 parser.add_option("-p", "--password", type="string", dest="masterPassword", help="masterPassword", default='')
 parser.add_option("-d", "--dir", type="string", dest="directory", help="directory", default='')
 (options, args) = parser.parse_args()
+options.directory = Path(options.directory)
 
 key, algo = getKey(  options.masterPassword.encode(), options.directory )
 if key==None:
