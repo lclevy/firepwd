@@ -403,7 +403,7 @@ def getKey( masterPassword, directory ):
         print('no saved login/password')      
     return None, None
   elif (directory / 'key3.db').exists():
-    keyData = readBsddb(directory+'key3.db')
+    keyData = readBsddb(directory / 'key3.db')
     key = extractSecretKey(masterPassword, keyData)
     return key, '1.2.840.113549.1.12.5.1.3'
   else:
