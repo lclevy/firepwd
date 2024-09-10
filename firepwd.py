@@ -201,6 +201,8 @@ def getLoginData():
       print ('error: no \'logins\' key in logins.json')
       return []
     for row in jsonLogins['logins']:
+      if 'encryptedUsername' not in row or 'encryptedPassword' not in row:
+        continue
       encUsername = row['encryptedUsername']
       encPassword = row['encryptedPassword']
       logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row['hostname']) )
