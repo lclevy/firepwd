@@ -195,12 +195,14 @@ def getLoginData():
   sqlite_file = options.directory / 'signons.sqlite'
   json_file = options.directory / 'logins.json'
   if json_file.exists(): #since Firefox 32, json is used instead of sqlite3
-    loginf = open( json_file, 'r').read()
+    loginf = open( json_file, 'r', encoding='utf-8').read()
     jsonLogins = json.loads(loginf)
     if 'logins' not in jsonLogins:
       print ('error: no \'logins\' key in logins.json')
       return []
     for row in jsonLogins['logins']:
+      if 'encryptedUsername' not in row or 'encryptedPassword' not in row:
+        continue
       encUsername = row['encryptedUsername']
       encPassword = row['encryptedPassword']
       logins.append( (decodeLoginData(encUsername), decodeLoginData(encPassword), row['hostname']) )
