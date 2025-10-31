@@ -2,6 +2,15 @@
 
 31oct2025
 
+### Fork: firepwd-ng.py
+A simplified script to decrypt Firefox passwords stored in the 'logins.json'
+file, using the master_key from 'key4.db'.
+
+This script is based on the original work by @lclevy but has been
+refactored for clarity and simplicity, focusing only on modern Firefox versions
+that use key4.db and logins.json.
+
+---
 ### Introduction
 
 This educational tool was written to illustrate how Mozilla passwords (Firefox, Thunderbird) are protected
