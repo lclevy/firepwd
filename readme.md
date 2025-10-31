@@ -1,6 +1,6 @@
 # Firepwd.py, an open source tool to decrypt Mozilla protected passwords 
 
-18apr2020
+31oct2025
 
 ### Introduction
 
@@ -26,6 +26,8 @@ or this [poster](https://github.com/lclevy/firepwd/raw/master/mozilla_pbe.pdf) f
 - Firefox >=58.0.2 (key4.db, logins.json)
 - Firefox >=75.0 (sha1 pbkdf2 sha256 aes256 cbc used by key4.db, logins.json)
 - at least Thunderbird 68.7.0, likely other versions
+- Firefox >=144.0 (sha1 pbkdf2 sha256 aes256 cbc used by key4.db, logins.json)
+
 
 key3.db is read directly, the 3rd party bsddb python module is NOT needed.
 
