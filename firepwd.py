@@ -398,7 +398,7 @@ def getKey( masterPassword, directory ):
         decoded_a11 = decoder.decode( a11 )
         #decrypt master key
         clearText, algo = decryptPBE( decoded_a11, masterPassword, globalSalt )
-        return clearText[:24], algo
+        return clearText, algo
       else:
         print('no saved login/password')      
     return None, None
@@ -426,15 +426,43 @@ logins = getLoginData()
 if len(logins)==0:
   print ('no stored passwords')
 else:
-  print ('decrypting login/password pairs' ) 
-if algo == '1.2.840.113549.1.12.5.1.3' or algo == '1.2.840.113549.1.5.13':  
-  for i in logins:
-    assert i[0][0] == CKA_ID
-    print ('%20s:' % (i[2]),end='')  #site URL
-    iv = i[0][1]
-    ciphertext = i[0][2] 
-    print ( unpad( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext),8 ), end=',')
-    iv = i[1][1]
-    ciphertext = i[1][2] 
-    print ( unpad( DES3.new( key, DES3.MODE_CBC, iv).decrypt(ciphertext),8 ) )
+  print ('decrypting login/password pairs' )
  
+final_key = None
+cipher_class = None
+block_size = None
+
+if len(key) == 32:  # 3DES
+    print('Using 3DES (32-byte key, truncated to 24)')
+    final_key = key[:24]
+    cipher_class = DES3
+    block_size = 8
+elif len(key) == 48:  # AES-256
+    print('Using AES-256 (48-byte key, truncated to 32)')
+    final_key = key[:32]
+    cipher_class = AES
+    block_size = AES.block_size
+else:
+    print(f"Error: Unexpected key length {len(key)}. Not 32 or 48.")
+    sys.exit()
+
+# Loop to decrypt all logins
+for i in logins:
+    try:
+        assert i[0][0] == CKA_ID
+        print('%20s:' % (i[2]), end='')  # site URL
+
+        # Decrypt username
+        iv_user = i[0][1]
+        ciphertext_user = i[0][2]
+        decrypted_user = unpad(cipher_class.new(final_key, cipher_class.MODE_CBC, iv_user).decrypt(ciphertext_user), block_size)
+        print(decrypted_user, end=',')
+
+        # Decrypt password
+        iv_pass = i[1][1]
+        ciphertext_pass = i[1][2]
+        decrypted_pass = unpad(cipher_class.new(final_key, cipher_class.MODE_CBC, iv_pass).decrypt(ciphertext_pass), block_size)
+        print(decrypted_pass)
+
+    except Exception as e:
+        print(f"Error decrypting entry for {i[2]}: {e}")
