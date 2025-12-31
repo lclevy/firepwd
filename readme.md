@@ -2,15 +2,6 @@
 
 31oct2025
 
-### Fork: firepwd-ng.py
-A simplified script to decrypt Firefox passwords stored in the 'logins.json'
-file, using the master_key from 'key4.db'.
-
-This script is based on the original work by @lclevy but has been
-refactored for clarity and simplicity, focusing only on modern Firefox versions
-that use key4.db and logins.json.
-
----
 ### Introduction
 
 This educational tool was written to illustrate how Mozilla passwords (Firefox, Thunderbird) are protected
@@ -34,11 +25,14 @@ or this [poster](https://github.com/lclevy/firepwd/raw/master/mozilla_pbe.pdf) f
 - Firefox >=32 (key3.db, logins.json) 
 - Firefox >=58.0.2 (key4.db, logins.json)
 - Firefox >=75.0 (sha1 pbkdf2 sha256 aes256 cbc used by key4.db, logins.json)
+- Firefox >=144.0 (https://github.com/lclevy/firepwd/pull/29) for logins.json using aes256 instead of 3des
 - at least Thunderbird 68.7.0, likely other versions
-- Firefox >=144.0 (sha1 pbkdf2 sha256 aes256 cbc used by key4.db, logins.json)
-
 
 key3.db is read directly, the 3rd party bsddb python module is NOT needed.
+
+### Warning
+
+File firepwd.py is detected as "HackTool:Python/Stealer!AMTB" by Microsoft Defender, which is NOT a false positive.
 
 ### Usage
 
@@ -217,6 +211,15 @@ Tested with python 3.7.3, PyCryptodome 3.9.0 and pyasn 0.4.8
 Modules required:
 - pyasn1,  https://pypi.python.org/pypi/pyasn1/, for ASN1 decoding
 - PyCryptodome, https://www.pycryptodome.org/en/latest/, for 3DES and AES decryption
+
+### Fork: firepwd-ng.py
+
+A simplified script to decrypt Firefox passwords stored in the 'logins.json'
+file, using the master_key from 'key4.db'.
+
+This script is based on the original work by @lclevy but has been
+refactored for clarity and simplicity, focusing only on modern Firefox versions
+that use key4.db and logins.json.
 
 ### Reference documents
 
