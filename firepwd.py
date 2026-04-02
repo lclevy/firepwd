@@ -437,7 +437,7 @@ final_key = None
 cipher_class = None
 block_size = None
 
-if len(key) == 32:  # 3DES
+if len(key) == 24 or 32:  # 3DES
     print('Using 3DES (32-byte key, truncated to 24)')
     final_key = key[:24]
     cipher_class = DES3
@@ -448,7 +448,7 @@ elif len(key) == 48:  # AES-256
     cipher_class = AES
     block_size = AES.block_size
 else:
-    print(f"Error: Unexpected key length {len(key)}. Not 32 or 48.")
+    print(f"Error: Unexpected key length {len(key)}. Not 24, 32 or 48.")
     sys.exit()
 
 # Loop to decrypt all logins
