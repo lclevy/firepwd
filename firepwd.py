@@ -423,6 +423,12 @@ parser.add_option("-d", "--dir", type="string", dest="directory", help="director
 (options, args) = parser.parse_args()
 options.directory = Path(options.directory)
 
+if not options.masterPassword:
+   import os
+
+   if 'MASTER_PASSWORD' in os.environ:
+      options.masterPassword = os.getenv('MASTER_PASSWORD')
+
 key, algo = getKey(  options.masterPassword.encode(), options.directory )
 if key==None:
   sys.exit()

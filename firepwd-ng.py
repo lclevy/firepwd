@@ -302,6 +302,12 @@ def main():
         print(f"Error: 'logins.json' not found in '{profile_dir}'")
         sys.exit(1)
 
+    if not args.master_password:
+        import os
+
+        if 'MASTER_PASSWORD' in os.environ:
+            args.master_password = os.getenv('MASTER_PASSWORD')
+
     # --- 2. Get the Master Key ---
     try:
         master_key = get_master_key(key_db_path, args.master_password)
