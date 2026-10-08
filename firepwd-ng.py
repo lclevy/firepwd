@@ -27,8 +27,12 @@ from pathlib import Path
 from argparse import ArgumentParser
 
 # PyCryptodome imports
-from Crypto.Cipher import AES, DES3
-from Crypto.Util.Padding import unpad
+try:
+    from Cryptodome.Cipher import AES, DES3
+    from Cryptodome.Util.Padding import unpad
+except ImportError:
+    from Crypto.Cipher import AES, DES3
+    from Crypto.Util.Padding import unpad
 
 # pyasn1 for parsing ASN.1 data structures
 from pyasn1.codec.der import decoder as der_decoder
