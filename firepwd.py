@@ -28,12 +28,18 @@ from base64 import b64decode
 from pyasn1.codec.der import decoder
 from hashlib import sha1, pbkdf2_hmac
 import hmac
-from Crypto.Cipher import DES3, AES
-from Crypto.Util.number import long_to_bytes
-from Crypto.Util.Padding import unpad   
 from optparse import OptionParser
 import json
 from pathlib import Path
+
+try:
+   from Cryptodome.Cipher import DES3, AES
+   from Cryptodome.Util.number import long_to_bytes
+   from Cryptodome.Util.Padding import unpad
+except ImportError:
+   from Crypto.Cipher import DES3, AES
+   from Crypto.Util.number import long_to_bytes
+   from Crypto.Util.Padding import unpad
 
 def getShortLE(d, a):
    return unpack('<H',(d)[a:a+2])[0]
